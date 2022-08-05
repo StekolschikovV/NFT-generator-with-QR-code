@@ -4,71 +4,71 @@ const fs = require("fs");
 
 class QrGenerator {
 
-    defaultConfiguration = {
-        paths: {
-            dirPath: './tmp/',
-            qrName: 'qr.svg',
-            imgName: 'img.jpg',
-        }
+  defaultConfiguration = {
+    paths: {
+      dirPath: './tmp/',
+      qrName: 'qr.svg',
+      imgName: 'img.jpg',
+    }
+  }
+
+  constructor(configuration) {
+    this.configuration = {...this.defaultConfiguration, ...configuration}
+    this.paths = this.configuration.paths
+    this.paths = {
+      ...this.paths,
+      qrPath: `${this.paths.dirPath}${this.paths.qrName}`,
+      imgPath: `${this.paths.dirPath}${this.paths.imgName}`,
+    }
+  }
+
+  generateQR = async (QRCodeConfig, SVGConfig) => {
+    const qrCode = new qr.QRCode({
+      content: 'Hello World',
+      ecl: 'H', // 'L' | 'M' | 'Q' | 'H'
+      ...QRCodeConfig
+    });
+
+    const qrSvg = new qr.QRSvg(qrCode, {
+      fill: '#1B60C8',
+      cornerBlocksAsCircles: false,
+      size: 112, // px
+      radiusFactor: 0.75, // 0-1
+      cornerBlockRadiusFactor: 2, // 0-3
+      roundOuterCorners: false,
+      roundInnerCorners: false,
+      ...SVGConfig
+    });
+
+    return qrSvg.svg;
+  }
+
+  generate = async (
+    htmlTemplate = '',
+    templateVariables = {},
+    QRCodeConfig = {},
+    SVGConfig = {},
+  ) => {
+
+    const svgStr = await this.generateQR(QRCodeConfig, SVGConfig)
+    const base64Image = new Buffer.from(svgStr).toString('base64');
+    const dataURI = 'data:image/svg+xml;base64,' + base64Image
+
+    if (!fs.existsSync(this.paths.dirPath)) {
+      fs.mkdirSync(this.paths.dirPath, {
+        mode: 0o744,
+      });
     }
 
-    constructor(configuration) {
-        this.configuration = {...this.defaultConfiguration, ...configuration}
-        this.paths = this.configuration.paths
-        this.paths = {
-            ...this.paths,
-            qrPath: `${this.paths.dirPath}${this.paths.qrName}`,
-            imgPath: `${this.paths.dirPath}${this.paths.imgName}`,
-        }
-    }
-
-    generateQR = async (QRCodeConfig, SVGConfig) => {
-        const qrCode = new qr.QRCode({
-            content: 'Hello World',
-            ecl: 'H', // 'L' | 'M' | 'Q' | 'H'
-            ...QRCodeConfig
-        });
-
-        const qrSvg = new qr.QRSvg(qrCode, {
-            fill: '#1B60C8',
-            cornerBlocksAsCircles: false,
-            size: 112, // px
-            radiusFactor: 0.75, // 0-1
-            cornerBlockRadiusFactor: 2, // 0-3
-            roundOuterCorners: false,
-            roundInnerCorners: false,
-            ...SVGConfig
-        });
-
-        return qrSvg.svg;
-    }
-
-    generate = async (
-      htmlTemplate = '',
-      templateVariables = {},
-      QRCodeConfig = {},
-      SVGConfig = {},
-    ) => {
-
-        const svgStr = await this.generateQR(QRCodeConfig, SVGConfig)
-        const base64Image = new Buffer.from(svgStr).toString('base64');
-        const dataURI = 'data:image/svg+xml;base64,' + base64Image
-
-        if (!fs.existsSync(this.paths.dirPath)) {
-            fs.mkdirSync(this.paths.dirPath, {
-                mode: 0o744,
-            });
-        }
-
-        await nodeHtmlToImage({
-            output: this.paths.imgPath,
-            html: htmlTemplate,
-            content: {
-                ...templateVariables,
-                imageSource: dataURI,
-            },
-        })
-    }
+    await nodeHtmlToImage({
+      output: this.paths.imgPath,
+      html: htmlTemplate,
+      content: {
+        ...templateVariables,
+        imageSource: dataURI,
+      },
+    })
+  }
 
 }
 
@@ -77,86 +77,89 @@ const qrGenerator = new QrGenerator()
 // example
 const run = async () => {
 
-    const htmlTemplate =
-      `
+  const htmlTemplate =
+    `
         <html>
             <head>
               <style>
-                .certificate {
-                  --color-blue: #1B60C8;
-                  --font-title: bold 48px/61px 'Space Grotesk', Arial;
-                  --font-medium-lh: 36px;
-                  --font-medium: 600 30px/var(--font-medium-lh) 'Inter', Arial;
-                  margin: 0;
-                  padding: 33px;
-                  width: 800px;
-                  height: 800px;
-                  background: #fff;
-                  color: var(--color-blue);
-                }
-                .certificate__container{
-                  padding: 31px 42px 42px;
-                  border-radius: 12px;
-                  border: 1px solid var(--color-blue);
-                }
-                .certificate__top-row{
-                   display: flex;
-                   justify-content: space-between;
-                   margin-bottom: 24px;
-                 }
-                .certificate__title{
-                   font: var(--font-title);
-                   text-transform: uppercase;
-                   flex: 0 0 auto;
-                   margin-right: 20px;
-                 }
-                .certificate__date{
-                   font: var(--font-title);
-                   flex: 0 0 auto;
-                 }
-                .certificate__username{
-                   font: var(--font-medium);
-                   height: var(--font-medium-lh);
-                   overflow: hidden;
-                   text-overflow: ellipsis;
-                 }
-                .certificate__surname{
-                   font: var(--font-medium);
-                   height: var(--font-medium-lh);
-                   overflow: hidden;
-                   text-overflow: ellipsis;
-                 }
-                .certificate__medal{
-                   height: 352px;
-                   width: auto;
-                   margin: 25px auto 0;
-                   display: block;
-                 }
-                .certificate__bottom-row{
-                   margin-top: 77px;
-                   display: flex;
-                   align-items: flex-end;
-                   justify-content: space-between;
-                 }
-                .certificate__platform-name{
-                   font: var(--font-title);
-                 }
-                .certificate__platform-qr-container{
-                    display:flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 112px;
-                    height: 112px;
-                    overflow: hidden;
-                }
-                .certificate__platform-qr{
-                    display:block;
-                    max-width: 100%;
-                    max-height: 100%;
-                    width: 100%;
-                    height: auto;
-                }
-              </style>
+              .certificate {
+                --color-blue: #1B60C8;
+                --font-title: bold 48px/61px 'Space Grotesk', Arial;
+                --font-medium-lh: 36px;
+                --font-medium: 600 30px/var(--font-medium-lh) 'Inter', Arial;
+                margin: 0;
+                padding: 33px;
+                box-sizing: border-box;
+                width: 800px;
+                height: 800px;
+                background: #fff;
+                color: var(--color-blue);
+              }
+              .certificate__container{
+                padding: 31px 42px 42px;
+                width: 100%;
+                height: 100%;
+                box-sizing: border-box;
+                border-radius: 12px;
+                border: 1px solid var(--color-blue);
+              }
+              .certificate__top-row{
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 24px;
+              }
+              .certificate__title{
+                font: var(--font-title);
+                text-transform: uppercase;
+                flex: 0 0 auto;
+                margin-right: 20px;
+              }
+              .certificate__date{
+                font: var(--font-title);
+                flex: 0 0 auto;
+              }
+              .certificate__username{
+                font: var(--font-medium);
+                height: var(--font-medium-lh);
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+              .certificate__surname{
+                font: var(--font-medium);
+                height: var(--font-medium-lh);
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+              .certificate__medal{
+                height: 352px;
+                width: auto;
+                margin: 25px auto 0;
+                display: block;
+              }
+              .certificate__bottom-row{
+                margin-top: 11px;
+                display: flex;
+                align-items: flex-end;
+                justify-content: space-between;
+              }
+              .certificate__platform-name{
+                font: var(--font-title);
+              }
+              .certificate__platform-qr-container{
+                display:flex;
+                align-items: center;
+                justify-content: center;
+                width: 112px;
+                height: 112px;
+                overflow: hidden;
+                padding-bottom: 13px;
+              }
+              .certificate__platform-qr{
+                display:block;
+                width: 112px;
+                height: 112px;
+              }
+            </style>
             </head>
             <body class="certificate">
               <div class="certificate__container">
@@ -181,14 +184,14 @@ const run = async () => {
         </html>
     `
 
-    await qrGenerator.generate(
-      htmlTemplate,
-      {},
-      {
-          content: 'google.com'
-      },
-      {}
-    )
+  await qrGenerator.generate(
+    htmlTemplate,
+    {},
+    {
+      content: 'google.com'
+    },
+    {}
+  )
 
 }
 
